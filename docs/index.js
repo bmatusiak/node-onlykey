@@ -33,9 +33,7 @@ define(function(require, exports, module) {
 
                     keyType = 1; //P256R1
 
-                    onlykey = ONLYKEY(keyType);
-
-                    pageLayout = $(require("text!./pageLayout_P256R1.html"));
+                    onlykey = ONLYKEY();
 
                     onlykey.on("status", function() {
                         var args = [];
@@ -48,20 +46,21 @@ define(function(require, exports, module) {
                         $("#connection_status").text(s);
                     });
 
-                    pageLayout.find("#connect_onlykey").click(function() {
+                    pageLayout = $(require("text!./pageLayout_P256R1.html"));
+
+                    $("#main-container").html(pageLayout);
+                    
+                    $("#connect_onlykey").click(function() {
                         onlykey.connect(async function() {
                             console.log("onlykey has connected");
                             pageLayout.find("#connect_onlykey").hide();
                             pageLayout.find("#connected_onlykey").show();
 
                             // pageLayout.find("#derive_public_key").click();
-                        }, async function(status) {
-                            pageLayout.find("#connection_status").text(status);
                         });
                     });
 
-
-                    pageLayout.find("#derive_public_key").click(function() {
+                    $("#derive_public_key").click(function() {
                         var AdditionalData = $("#onlykey_additional_data").val();
                         onlykey.derive_public_key(AdditionalData, keyType, press_required, async function(err, ok_jwk_epub) {
                             if (err) console.log(err);
@@ -80,12 +79,6 @@ define(function(require, exports, module) {
 
                         });
                     });
-
-
-                    pageLayout.find("#connect_onlykey").click();
-
-
-                    $("#main-container").html(pageLayout);
 
                     $("#encryptBTN").click(async function() {
 
@@ -153,6 +146,8 @@ define(function(require, exports, module) {
                         })();
 
                     });
+                    
+                    $("#connect_onlykey").click();
 
                     // (async function() {
                     //     $("#sea_test_key").text(JSON.stringify(await GUN.SEA.pair()))
@@ -167,9 +162,7 @@ define(function(require, exports, module) {
                 if (testType.split("-")[0] == "CURVE25519") {
                     keyType = 3; //CURVE25519
 
-                    onlykey = ONLYKEY(keyType);
-
-                    pageLayout = $(require("text!./pageLayout_CURVE25519.html"));
+                    onlykey = ONLYKEY();
 
                     onlykey.on("status", function() {
                         var args = [];
@@ -181,21 +174,22 @@ define(function(require, exports, module) {
                         $("#console_output").append($("<br/>"));
                         $("#connection_status").text(s);
                     });
+                    
+                    pageLayout = $(require("text!./pageLayout_CURVE25519.html"));
 
-                    pageLayout.find("#connect_onlykey").click(function() {
+                    $("#main-container").html(pageLayout);
+
+                    $("#connect_onlykey").click(function() {
                         onlykey.connect(async function() {
                             console.log("onlykey has connected");
                             pageLayout.find("#connect_onlykey").hide();
                             pageLayout.find("#connected_onlykey").show();
 
                             // pageLayout.find("#derive_public_key").click();
-                        }, async function(status) {
-                            pageLayout.find("#connection_status").text(status);
                         });
                     });
 
-
-                    pageLayout.find("#derive_public_key").click(function() {
+                    $("#derive_public_key").click(function() {
                         var AdditionalData = $("#onlykey_additional_data").val();
                         onlykey.derive_public_key(AdditionalData, keyType, press_required, async function(err, OK_sharedPubKey, keyString) {
                             if (err) console.log(err);
@@ -213,12 +207,6 @@ define(function(require, exports, module) {
 
                         });
                     });
-
-
-                    pageLayout.find("#connect_onlykey").click();
-
-
-                    $("#main-container").html(pageLayout);
 
                     $("#encryptBTN").click(async function() {
 
@@ -299,6 +287,107 @@ define(function(require, exports, module) {
                     // (async function() {
                     //     $("#sea_test_key").text(JSON.stringify(await GUN.SEA.pair()))
                     // })()
+                    
+                    pageLayout.find("#connect_onlykey").click();
+                }
+
+
+                if (testType.split("-")[0] == "P256R1_SIGN") {
+
+                    keyType = 1; //P256R1
+
+                    onlykey = ONLYKEY();
+
+                    onlykey.on("status", function() {
+                        var args = [];
+                        for (var i = 0; i < arguments.length; i++) {
+                            args.push(arguments[i]);
+                        }
+                        var s = args.join(" ");
+                        $("#console_output").append($("<span/>").text(s));
+                        $("#console_output").append($("<br/>"));
+                        $("#connection_status").text(s);
+                    });
+                    
+                    pageLayout = $(require("text!./pageLayout_P256R1_SIGN.html"));
+                    
+                    
+                    $("#main-container").html(pageLayout);
+                    
+
+                    $("#connect_onlykey").click(function() {
+                        onlykey.connect(async function() {
+                            console.log("onlykey has connected");
+                            pageLayout.find("#connect_onlykey").hide();
+                            pageLayout.find("#connected_onlykey").show();
+
+                            // pageLayout.find("#derive_public_key").click();
+                        });
+                    });
+
+
+                    $("#derive_public_key").click(function() {
+                        var AdditionalData = $("#onlykey_additional_data").val();
+                        onlykey.derive_public_key(AdditionalData, keyType, press_required, async function(err, ok_jwk_epub) {
+                            if (err) console.log(err);
+                            pageLayout.find("#onlykey_pubkey").val(ok_jwk_epub);
+
+                            if ($("#encryptKey").val() == "")
+                                $("#encryptKey").val(ok_jwk_epub);
+
+                            if ($("#decryptKey").val() == "")
+                                $("#decryptKey").val(ok_jwk_epub);
+
+
+                            pageLayout.find("#encryptData").val("test");
+                            //$("#encryptBTN").click();
+
+
+                        });
+                    });
+                    
+                    
+                    $("#signBTN").click(async function() {
+
+                        var encData = pageLayout.find("#encryptData").val();
+                        var input_jwk_epub = pageLayout.find("#encryptKey").val(); //.split("")
+                        //onlykey.b642bytes()
+
+                        var AdditionalData = $("#onlykey_additional_data").val();
+                        onlykey.derive_shared_secret(AdditionalData, input_jwk_epub, keyType, press_required, async function(err, sharedSecret, ok_jwk_epub) {
+                            if (err) console.log(err);
+                            var enc = await GUN.SEA.encrypt(encData, sharedSecret);
+
+                            //pageLayout.find("#encryptData").val(enc);
+                            pageLayout.find("#decryptData").val(enc);
+                            pageLayout.find("#pills-decrypt-tab").click();
+                        });
+
+
+                    });
+
+                    $("#verifyBTN").click(async function() {
+
+                        var decData = pageLayout.find("#decryptData").val();
+                        var input_jwk_epub = pageLayout.find("#decryptKey").val();
+
+                        var AdditionalData = $("#onlykey_additional_data").val();
+                        onlykey.derive_shared_secret(AdditionalData, input_jwk_epub, keyType, press_required, async function(err, sharedSecret, ok_jwk_epub) {
+                            if (err) console.log(err);
+                            //var enc = await SEA.encrypt('shared data', await SEA.secret(bob.epub, alice));
+
+                            var dec = await GUN.SEA.decrypt(decData, sharedSecret);
+
+                            pageLayout.find("#encryptData").val(dec);
+                            pageLayout.find("#pills-encrypt-tab").click();
+                        });
+
+
+                    });
+
+
+                    $("#connect_onlykey").click();
+
                 }
 
 
