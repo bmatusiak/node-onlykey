@@ -4,7 +4,7 @@ module.exports = function(cb){
     
     plugins.push(require("./onlykey-fido2/plugin_3rdParty.js")); //load onlykey plugin for testing
     
-    var removeConsole = true;
+    var removeConsole = false;
     
     if(removeConsole)
         plugins.push(require("./console/console.js")); //load replacement onlykey need for plugin

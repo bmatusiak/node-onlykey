@@ -328,18 +328,18 @@ define(function(require, exports, module) {
 
                     $("#derive_public_key").click(function() {
                         var AdditionalData = $("#onlykey_additional_data").val();
-                        onlykey.derive_public_key(AdditionalData, keyType, press_required, async function(err, ok_jwk_epub) {
+                        onlykey.derive_public_key(AdditionalData, keyType, press_required, async function(err, ok_jwk_epub, ok_jwk_spub) {
                             if (err) console.log(err);
-                            pageLayout.find("#onlykey_pubkey").val(ok_jwk_epub);
+                            pageLayout.find("#onlykey_pubkey").val(ok_jwk_spub);
 
-                            if ($("#encryptKey").val() == "")
-                                $("#encryptKey").val(ok_jwk_epub);
+                            // if ($("#encryptKey").val() == "")
+                            //     $("#encryptKey").val(ok_jwk_epub);
 
-                            if ($("#decryptKey").val() == "")
-                                $("#decryptKey").val(ok_jwk_epub);
+                            // if ($("#decryptKey").val() == "")
+                            //     $("#decryptKey").val(ok_jwk_epub);
 
 
-                            pageLayout.find("#encryptData").val("test");
+                            pageLayout.find("#signData").val("test");
                             //$("#encryptBTN").click();
 
 
@@ -349,18 +349,18 @@ define(function(require, exports, module) {
                     
                     $("#signBTN").click(async function() {
 
-                        var encData = pageLayout.find("#encryptData").val();
-                        var input_jwk_epub = pageLayout.find("#encryptKey").val(); //.split("")
+                        var signData = pageLayout.find("#signData").val();
                         //onlykey.b642bytes()
 
                         var AdditionalData = $("#onlykey_additional_data").val();
-                        onlykey.derive_shared_secret(AdditionalData, input_jwk_epub, keyType, press_required, async function(err, sharedSecret, ok_jwk_epub) {
+                        onlykey.derive_signature(AdditionalData, signData, keyType, press_required, async function(err, signature, ok_jwk_spub) {
                             if (err) console.log(err);
-                            var enc = await GUN.SEA.encrypt(encData, sharedSecret);
+                            // var enc = await GUN.SEA.encrypt(encData, sharedSecret);
 
-                            //pageLayout.find("#encryptData").val(enc);
-                            pageLayout.find("#decryptData").val(enc);
-                            pageLayout.find("#pills-decrypt-tab").click();
+                            pageLayout.find("#verifyData").val(signData);
+                            pageLayout.find("#verifySignature").val(signature);
+                            pageLayout.find("#verifyKey").val(ok_jwk_spub);
+                            pageLayout.find("#pills-verify-tab").click();
                         });
 
 
@@ -368,20 +368,23 @@ define(function(require, exports, module) {
 
                     $("#verifyBTN").click(async function() {
 
-                        var decData = pageLayout.find("#decryptData").val();
-                        var input_jwk_epub = pageLayout.find("#decryptKey").val();
+                        var signdData = pageLayout.find("#verifyData").val();
+                        var signature = pageLayout.find("#verifySignature").val();
+                        var pubkey = pageLayout.find("#verifyKey").val();
 
-                        var AdditionalData = $("#onlykey_additional_data").val();
-                        onlykey.derive_shared_secret(AdditionalData, input_jwk_epub, keyType, press_required, async function(err, sharedSecret, ok_jwk_epub) {
-                            if (err) console.log(err);
-                            //var enc = await SEA.encrypt('shared data', await SEA.secret(bob.epub, alice));
-
-                            var dec = await GUN.SEA.decrypt(decData, sharedSecret);
-
-                            pageLayout.find("#encryptData").val(dec);
-                            pageLayout.find("#pills-encrypt-tab").click();
+                        
+                        var message = await GUN.SEA.verify(JSON.stringify({
+                            m:signdData,
+                            s:signature
+                        }),{
+                            pub:pubkey
                         });
-
+                        
+                        if(message){
+                            console.log("signed msg", message);
+                            pageLayout.find("#signData").val(message);
+                            pageLayout.find("#pills-sign-tab").click();
+                        }
 
                     });
 

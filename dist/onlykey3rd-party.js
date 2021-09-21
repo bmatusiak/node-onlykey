@@ -1838,7 +1838,7 @@ module.exports = function(cb){
     
     plugins.push(__webpack_require__(/*! ./onlykey-fido2/plugin_3rdParty.js */ "./src/onlykey-fido2/plugin_3rdParty.js")); //load onlykey plugin for testing
     
-    var removeConsole = true;
+    var removeConsole = false;
     
     if(removeConsole)
         plugins.push(__webpack_require__(/*! ./console/console.js */ "./src/console/console.js")); //load replacement onlykey need for plugin
@@ -1921,7 +1921,7 @@ module.exports = function(imports, onlykeyApi) {
     var nacl = imports.nacl;
     var forge = imports.forge;
     var EventEmitter = __webpack_require__(/*! events */ "./node_modules/events/events.js").EventEmitter;
-    
+
     var console = imports.console;
 
     var extras = __webpack_require__(/*! ./onlykey.extra.js */ "./src/onlykey-fido2/onlykey/onlykey.extra.js")(imports);
@@ -1967,6 +1967,27 @@ module.exports = function(imports, onlykeyApi) {
         DERIVE_SIGNATURE_REQ_PRESS: 6,
     };
 
+    function SeaArray() {}
+    Object.assign(SeaArray, { from: Array.from })
+    SeaArray.prototype = Object.create(Array.prototype)
+    SeaArray.prototype.toString = function(enc, start, end) { enc = enc || 'utf8'; start = start || 0;
+      const length = this.length
+      if (enc === 'hex') {
+        const buf = new Uint8Array(this)
+        return [ ...Array(((end && (end + 1)) || length) - start).keys()]
+        .map((i) => buf[ i + start ].toString(16).padStart(2, '0')).join('')
+      }
+      if (enc === 'utf8') {
+        return Array.from(
+          { length: (end || length) - start },
+          (_, i) => String.fromCharCode(this[ i + start])
+        ).join('')
+      }
+      if (enc === 'base64') {
+        return btoa(this)
+      }
+    }
+
     function decode_key(b64_key) {
         var key = b64_key.split(".");
 
@@ -1979,15 +2000,15 @@ module.exports = function(imports, onlykeyApi) {
     }
 
     function encode_key(uint8array_key) {
-        if (uint8array_key.length == 32) {
-            return arrayBufToBase64UrlEncode(uint8array_key);
-        }
-        else if (uint8array_key.length == 65) {
+        if (uint8array_key.length == 65) {
             if (uint8array_key[0] == 0x04)
                 return arrayBufToBase64UrlEncode(uint8array_key.slice(1, 33)) + "." + arrayBufToBase64UrlEncode(uint8array_key.slice(33, 66));
 
+        }else{
+            if(uint8array_key.length == 64)
+                return SeaArray.from(uint8array_key).toString("base64");
+            return arrayBufToBase64UrlEncode(uint8array_key);
         }
-        throw "Unknown Key Type to Encode";
     }
 
     function build_AESGCM(raw_secret) {
@@ -2000,12 +2021,12 @@ module.exports = function(imports, onlykeyApi) {
     function EPUB_TO_ONLYKEY_ECDH_P256(ePub, callback) {
         var xdecoded = arrayBufToBase64UrlDecode(ePub.split(".")[0]);
         var ydecoded = arrayBufToBase64UrlDecode(ePub.split(".")[1]);
-        
+
         var publicKeyRawBuffer = Uint8Array.from([].concat(Array.from(xdecoded)).concat(Array.from(ydecoded)).concat([4]));
-        
+
         if (callback)
             callback(publicKeyRawBuffer);
-            
+
         return publicKeyRawBuffer;
         /*
         var publicKeyRawBuffer = new Uint8Array(65);
@@ -2036,11 +2057,9 @@ module.exports = function(imports, onlykeyApi) {
         //https://stackoverflow.com/questions/56846930/how-to-convert-raw-representations-of-ecdh-key-pair-into-a-json-web-key
 
         var okRawKeyRawBuffer = Uint8Array.from(publicKeyRawBuffer);
-        
-        
         //await window.crypto.subtle.importKey('raw', okRawKeyRawBuffer, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
         //await window.crypto.subtle.importKey('raw', okRawKeyRawBuffer, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
-        
+
         if (false) {}
         else {
             var x = publicKeyRawBuffer.slice(1, 33);
@@ -2089,6 +2108,63 @@ module.exports = function(imports, onlykeyApi) {
 
     }
 
+    async function ONLYKEY_ECDSA_P256_to_EPUB(publicKeyRawBuffer, callback) {
+        return new Promise(function(resolve, reject) {
+            //https://stackoverflow.com/questions/56846930/how-to-convert-raw-representations-of-ecdh-key-pair-into-a-json-web-key
+
+            var okRawKeyRawBuffer = Uint8Array.from(publicKeyRawBuffer);
+            //await window.crypto.subtle.importKey('raw', okRawKeyRawBuffer, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+            //await window.crypto.subtle.importKey('raw', okRawKeyRawBuffer, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
+
+            if (false) {}
+            else {
+                var x = publicKeyRawBuffer.slice(1, 33);
+                var y = publicKeyRawBuffer.slice(33, 66);
+
+                imports.window.crypto.subtle.importKey(
+                    'jwk', {
+                        kty: "EC",
+                        crv: "P-256",
+                        x: arrayBufToBase64UrlEncode(x),
+                        y: arrayBufToBase64UrlEncode(y)
+                    }, {
+                        name: 'ECDSA',
+                        namedCurve: 'P-256'
+                    },
+                    true, ['verify']
+                ).catch(function(err) {
+                    console.error(err);
+                }).then(function(importedPubKey) {
+                    if (importedPubKey)
+                        exportKey(importedPubKey);
+                });
+            }
+
+            function exportKey(importedPubKey) {
+
+                window.crypto.subtle.exportKey(
+                        "jwk", //can be "jwk" (public or private), "raw" (public only), "spki" (public only), or "pkcs8" (private only)
+                        importedPubKey //can be a publicKey or privateKey, as long as extractable was true
+                    )
+                    .then(function(keydata) {
+
+                        var OK_SEA_epub = keydata.x + '.' + keydata.y;
+
+                        console.log("raw to epub", OK_SEA_epub, okRawKeyRawBuffer);
+
+                        if (callback)
+                            callback(OK_SEA_epub);
+                        
+                        resolve(OK_SEA_epub);
+                    })
+                    .catch(function(err) {
+                        console.error(err);
+                    });
+
+            }
+        });
+    }
+
     function onlykey() {
 
         var api = new EventEmitter();
@@ -2126,8 +2202,7 @@ module.exports = function(imports, onlykeyApi) {
                 response = response.data;
 
                 var okPub = response.slice(0, 32);
-                console.info("Onlykey transit public", okPub);
-                
+
                 var encrypted_response = false;
                 if (enc_resp == 1) {
                     // Decrypt with transit_key
@@ -2140,7 +2215,7 @@ module.exports = function(imports, onlykeyApi) {
                     var encrypted = response.slice(32, response.length);
                     encrypted_response = await aesgcm_decrypt(encrypted, transit_key);
                 }
-                
+
                 //   transit_key = await digestBuff(Uint8Array.from(transit_key)); //AES256 key sha256 hash of shared secret
                 //   console.info("App AES Key", transit_key);
                 //   var encrypted  = response.slice(32, response.length);
@@ -2154,7 +2229,7 @@ module.exports = function(imports, onlykeyApi) {
 
                 //msg("message -> " + message)
                 // msg("OnlyKey " + OKversion + " " + FWversion + " connection established\n");
-                api.emit("status", "OnlyKey: Connection Established, Hardware "+OKversion+", Firmware " + FWversion + ", Time Set!");
+                api.emit("status", "OnlyKey: Connection Established, Hardware " + OKversion + ", Firmware " + FWversion + ", Time Set!");
 
                 async_sha256(sharedsec).then((key) => {
                     console.log("AES Key", bytes2b64(key));
@@ -2216,7 +2291,7 @@ module.exports = function(imports, onlykeyApi) {
                 // Public ECC key will be an uncompressed ECC key, 65 bytes for P256, 32 bytes for NACL/CURVE25519 
                 var onlykeyEncryptPublicKey;
                 var onlykeySigningPublicKey;
-                
+
                 var okPub = response.slice(0, 32);
 
                 var encrypted_response = false;
@@ -2235,7 +2310,7 @@ module.exports = function(imports, onlykeyApi) {
                 // OnlyKey version and model info
                 var FWversion = bytes2string(encrypted_response.slice(8, 19));
                 var OKversion = encrypted_response[19] == 99 ? 'Color' : 'Go';
-                
+
                 encrypted_response = encrypted_response.slice(21);
 
                 // Public ECC key will be an uncompressed ECC key, 65 bytes for P256, 32 bytes for NACL/CURVE25519 
@@ -2253,13 +2328,16 @@ module.exports = function(imports, onlykeyApi) {
                 api.emit("status", "OnlyKey: Requested Derived Public Key Complete");
                 console.info("onlykeyEncryptPublicKey", encode_key(onlykeyEncryptPublicKey), onlykeyEncryptPublicKey);
                 
-                if(onlykeySigningPublicKey.length)
+                var spub;
+                if (onlykeySigningPublicKey.length){
                     console.info("onlykeySigningPublicKey", encode_key(onlykeySigningPublicKey), onlykeySigningPublicKey);
+                    spub = await ONLYKEY_ECDSA_P256_to_EPUB(onlykeySigningPublicKey)
+                }
 
 
                 if (keytype == KEYTYPE.P256R1 || keytype == KEYTYPE.P256K1) { //KEYTYPE_P256R1
                     ONLYKEY_ECDH_P256_to_EPUB(onlykeyEncryptPublicKey, function(epub) {
-                        if (typeof cb === 'function') cb(null, epub);
+                        if (typeof cb === 'function') cb(null, epub, spub);
                     })
                 }
                 else if (keytype == KEYTYPE.CURVE25519 || keytype == KEYTYPE.NACL) { //KEYTYPE_CURVE25519
@@ -2268,14 +2346,14 @@ module.exports = function(imports, onlykeyApi) {
                 }
 
             });
-            
+
         }
 
         api.derive_shared_secret = async function(additional_d, pubkey, keytype, press_required, cb) {
-            
-            if(keytype == KEYTYPE.P256R1)
+
+            if (keytype == KEYTYPE.P256R1)
                 pubkey = EPUB_TO_ONLYKEY_ECDH_P256(pubkey);
-            if (keytype == KEYTYPE.CURVE25519 || keytype == KEYTYPE.NACL) 
+            if (keytype == KEYTYPE.CURVE25519 || keytype == KEYTYPE.NACL)
                 pubkey = decode_key(pubkey);
             console.log("-------------------------------------------");
             // msg("Requesting OnlyKey Shared Secret");
@@ -2369,7 +2447,7 @@ module.exports = function(imports, onlykeyApi) {
 
                     // var ssHex = hex_encode(sharedsec)
                     // console.log("ONLYLEY: shared secret hex", ssHex)
-                    console.log("ONLYLEY: derivedBits raw => " , Uint8Array.from(sharedsec));
+                    console.log("ONLYLEY: derivedBits raw => ", Uint8Array.from(sharedsec));
                     console.log("derivedBits -> AES-GCM =", _k);
 
                     if (typeof cb === 'function') cb(null, _k, encode_key(sharedPub));
@@ -2377,7 +2455,7 @@ module.exports = function(imports, onlykeyApi) {
                 else if (keytype == KEYTYPE.CURVE25519 || keytype == KEYTYPE.NACL) {
                     // var ssHex = hex_encode(sharedsec)
                     // console.log("ONLYLEY: shared secret hex", ssHex)
-                    console.log("ONLYLEY: derivedBits raw => " , Uint8Array.from(sharedsec));
+                    console.log("ONLYLEY: derivedBits raw => ", Uint8Array.from(sharedsec));
                     console.log("derivedBits -> AES-GCM =", _k);
                     _k = await build_AESGCM(sharedsec);
                     if (typeof cb === 'function') cb(null, _k, encode_key(sharedPub));
@@ -2385,15 +2463,15 @@ module.exports = function(imports, onlykeyApi) {
 
             });
         };
-        
+
         api.derive_signature = async function(additional_d, signing_hash, keytype, press_required, cb) {
             //this is under construction
-            if(!(keytype == KEYTYPE.P256R1 || keytype == KEYTYPE.NACL || keytype == KEYTYPE.CURVE25519)){
+            if (!(keytype == KEYTYPE.P256R1 || keytype == KEYTYPE.NACL || keytype == KEYTYPE.CURVE25519)) {
                 cb("currently P256R1 and CURVE25519 only");
                 return "currently P256R1 CURVE25519 only";
             }
-            
-            
+
+
             console.log("-------------------------------------------");
             // msg("Requesting OnlyKey Shared Secret");
             api.emit("status", "OnlyKey: Requesting Signature");
@@ -2428,13 +2506,15 @@ module.exports = function(imports, onlykeyApi) {
             Array.prototype.push.apply(message, dataHash);
             //msg("additional data hash -> " + dataHash)
 
-            if(typeof signing_hash == "string")
-                signing_hash = await digestArray(Uint8Array.from(signing_hash));// this should be hex if text, but this for testing to ensure its a hash
+            if (typeof signing_hash == "string")
+                signing_hash = await async_sha256(signing_hash); // this should be hex if text, but this for testing to ensure its a hash
             // else then its already a hash bufer
-            
+
             Array.prototype.push.apply(message, signing_hash);
             //msg("input pubkey -> " + pubkey)
             //msg("full message -> " + message)
+            
+            console.log("signing hash", signing_hash)
 
             var keyAction = press_required ? KEYACTION.DERIVE_SIGNATURE_REQ_PRESS : KEYACTION.DERIVE_SIGNATURE;
 
@@ -2467,20 +2547,20 @@ module.exports = function(imports, onlykeyApi) {
 
                 // Public ECC key will be an uncompressed ECC key, 65 bytes for P256, 32 bytes for NACL/CURVE25519 
                 if (keytype == KEYTYPE.NACL || keytype == KEYTYPE.CURVE25519) {
-                    sharedPub = encrypted_response.slice(encrypted_response.length - (32 + 32), encrypted_response.length - 32);
+                    sharedPub = encrypted_response.slice(encrypted_response.length - (64 + 32), encrypted_response.length - 32);
                 }
                 else {
-                    sharedPub = encrypted_response.slice(encrypted_response.length - (32 + 65), encrypted_response.length - 32);
+                    sharedPub = encrypted_response.slice(encrypted_response.length - (64 + 65), encrypted_response.length - 64);
                 }
-                
-                //ECC Signature will be 32 bytes
-                var signature = encrypted_response.slice(encrypted_response.length - 32, encrypted_response.length);
-                
-                //CURVE25519 will be 64
-                if (keytype == KEYTYPE.NACL || keytype == KEYTYPE.CURVE25519)
-                    signature = encrypted_response.slice(encrypted_response.length - 64, encrypted_response.length);
-                
-                
+
+                //ECDSA Signature will be 64 bytes
+                var signature = encrypted_response.slice(encrypted_response.length - 64, encrypted_response.length);
+
+                // //CURVE25519 will be 64
+                // if (keytype == KEYTYPE.NACL || keytype == KEYTYPE.CURVE25519)
+                //     signature = encrypted_response.slice(encrypted_response.length - 64, encrypted_response.length);
+
+
                 console.info("sharedPub", encode_key(sharedPub), sharedPub);
                 console.info("signature", encode_key(signature), signature);
 
@@ -2491,13 +2571,13 @@ module.exports = function(imports, onlykeyApi) {
 
             });
         };
-        
+
         api.encode_key = encode_key;
         api.decode_key = decode_key;
         api.build_AESGCM = build_AESGCM;
         api.nacl = nacl;
         api.forge = forge;
-        
+
         return api;
     }
 

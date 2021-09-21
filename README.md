@@ -31,7 +31,7 @@ Events
 -----
 
 ```js
-ok.on(event,function() {})
+ok.on(event,function(msg) {})
 ```
 
 List of events
