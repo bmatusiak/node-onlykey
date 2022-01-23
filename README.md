@@ -1,5 +1,7 @@
 # node-onlykey
 
+[![Join the chat at https://gitter.im/bmatusiak/node-onlykey](https://badges.gitter.im/bmatusiak/node-onlykey.svg)](https://gitter.im/bmatusiak/node-onlykey?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## STATUS: ALPHA
 
 Get an Onlykey: [https://onlykey.io/](https://onlykey.io/)
