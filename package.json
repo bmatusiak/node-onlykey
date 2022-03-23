@@ -2,7 +2,7 @@
   "name": "@trustcrypto/node-onlykey",
   "version": "0.0.1",
   "description": "Onlykey Javascript Library",
-  "main": "dist/onlykey3rd-party.js",
+  "main": "node.js",
   "scripts": {
     "build": "cross-env NODE_ENV=development webpack --devtool source-map --config webpack.config.js",
     "build-min": "cross-env MINIFY=1 NODE_ENV=production webpack --devtool source-map --config webpack.config.js",
