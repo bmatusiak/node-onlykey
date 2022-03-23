@@ -22,8 +22,9 @@ module.exports = function(cb, step) {
         }
     });
 
-    architect(plugins, function(err, app) {
-
+    
+    architect.createApp(plugins, function(err, app) {
+    
         if (err) return console.error(err);
         app.services.app.core = app.services;
         for (var i in app.services) {
