@@ -1,4 +1,4 @@
-module.exports = function(cb, step) {
+module.exports = function(cb, step, $window) {
     var plugins = [];
 
     plugins.push(require("./onlykey-fido2/plugin_3rdParty.js")); //load onlykey plugin for testing
@@ -21,7 +21,7 @@ module.exports = function(cb, step) {
         setup: function(options, imports, register) {
             register(null, {
                 app: new EventEmitter(),
-                window: window
+                window: $window || window
             });
         }
     });
